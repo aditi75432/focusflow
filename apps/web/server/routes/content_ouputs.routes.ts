@@ -1,43 +1,62 @@
 import { Router } from "express";
 import { protectRoute } from "../middleware/auth.middleware";
-// import {
-//   createContentOutput,
-//   getMyContentOutputs,
-//   getContentOutputById,
-//   deleteContentOutput,
-// } from "../controllers/content_outputs.controller";
 import {
-    createContentOutput, 
-    getMyContentOutputs,
-    getContentOutputById,
-    deleteContentOutput
-
-}from "../controllers/content_outputs.controller";
+  createContentOutput,
+  markProcessing,
+  markProcessingComplete,
+  markProcessingFailed,
+  getMyContentOutputs,
+  getContentOutputById,
+} from "../controllers/content_outputs.controller";
 
 const router = Router();
 
 /**
- * CREATE content output
- * POST /api/content-outputs
+ * STEP 1 — Create content output after RAW upload
+ * POST /api/content_outputs
  */
 router.post("/", protectRoute, createContentOutput);
 
 /**
- * GET all content outputs for logged-in user
- * GET /api/content-outputs/me
+ * STEP 2 — Mark processing started
+ * PATCH /api/content_outputs/:contentId/processing
  */
-router.get("/me", protectRoute, getMyContentOutputs);
+router.patch(
+  "/:contentId/processing",
+  protectRoute,
+  markProcessing
+);
 
 /**
- * GET single content output by contentId
- * GET /api/content-outputs/:contentId
+ * STEP 3 — Mark processing complete (processed JSON ready)
+ * PATCH /api/content_outputs/:contentId/complete
+ */
+router.patch(
+  "/:contentId/complete",
+  protectRoute,
+  markProcessingComplete
+);
+
+/**
+ * STEP 4 — Mark processing failed
+ * PATCH /api/content_outputs/:contentId/failed
+ */
+router.patch(
+  "/:contentId/failed",
+  protectRoute,
+  markProcessingFailed
+);
+
+/**
+ * GET — All READY content outputs for dashboard
+ * GET /api/content_outputs
+ */
+router.get("/", protectRoute, getMyContentOutputs);
+
+/**
+ * GET — Single READY content output
+ * GET /api/content_outputs/:contentId
  */
 router.get("/:contentId", protectRoute, getContentOutputById);
-
-/**
- * DELETE content output
- * DELETE /api/content-outputs/:contentId
- */
-router.delete("/:contentId", protectRoute, deleteContentOutput);
 
 export default router;
