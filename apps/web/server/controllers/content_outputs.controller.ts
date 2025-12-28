@@ -1,150 +1,214 @@
 import { Request, Response } from "express";
-import { v4 as uuid } from "uuid";
-import { content_outputs } from "../models/content_outputs";
-import { Content_outputsContainer, UserContainer } from "../lib/db.config";
-import { User } from "../models/User";
+import { v4 as uuidv4 } from "uuid";
+import {
+  Content_outputs,
+  InputType,
+  ProcessingStatus,
+  OutputFormat,
+} from "../models/Content_outputs";
+import { Content_outputsContainer } from "../lib/db.config";
+import { getContainerClient } from "../lib/blob.config";
 
+/**
+ * STEP 1 — Create content output after RAW upload
+ * status = UPLOADED
+ */
 export const createContentOutput = async (req: Request, res: Response) => {
   try {
-    const user = req.user;
-    const { inputType, storageRef } = req.body;
+    const userId = req.user.id;
 
-    if (!user) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
+    const { inputType, rawStorageRef } = req.body;
 
-    if (!inputType || !storageRef) {
+    if (!inputType || !rawStorageRef) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    const now = new Date().toISOString();
-    const contentId = uuid();
+    const contentId = uuidv4();
 
-    const newContent: content_outputs = {
-      id: contentId,           // Cosmos id
+    const contentOutput: Content_outputs = {
+      id: contentId,
       contentId,
-      userId: user.id,
-      inputType,
-      storageRef,
-      createdAt: now,
+      userId,
+
+      inputType: inputType as InputType,
+      rawStorageRef,
+
+      status: "UPLOADED",
+
+      createdAt: new Date().toISOString(),
       type: "CONTENT_OUTPUT",
     };
 
-    // Save content output
-    await Content_outputsContainer.items.create(newContent);
+    await Content_outputsContainer.items.create(contentOutput);
 
-    // 🔗 Update user's previousContentList
-    const { resource: userDoc } = await UserContainer
-      .item(user.id, user.id)
-      .read<User>();
-
-    if (userDoc) {
-      userDoc.previousContentList.push(contentId);
-      await UserContainer.item(user.id, user.id).replace(userDoc);
-    }
-
-    res.status(201).json(newContent);
-
+    res.status(201).json(contentOutput);
   } catch (error) {
-    console.error("[content_outputs] Error creating content:", error);
-    res.status(500).json({ message: "Internal server error" });
+    console.error("[content_outputs] create error:", error);
+    res.status(500).json({ message: "Failed to create content output" });
   }
 };
 
-export const getMyContentOutputs = async (req: Request, res: Response) => {
+/**
+ * STEP 2 — Mark processing started
+ * status = PROCESSING
+ */
+export const markProcessing = async (req: Request, res: Response) => {
   try {
-    const user = req.user;
-    if (!user) return res.status(401).json({ message: "Unauthorized" });
+    const { contentId } = req.params;
+    const userId = req.user.id;
+
+    const { resource } =
+      await Content_outputsContainer.item(contentId, userId).read();
+
+    if (!resource) {
+      return res.status(404).json({ message: "Content output not found" });
+    }
+
+    resource.status = "PROCESSING";
+    await Content_outputsContainer
+      .item(contentId, userId)
+      .replace(resource);
+
+    res.status(200).json(resource);
+  } catch (error) {
+    console.error("[content_outputs] processing error:", error);
+    res.status(500).json({ message: "Failed to mark processing" });
+  }
+};
+
+/**
+ * STEP 3 — Save processed output
+ * status = READY
+ */
+export const markProcessingComplete = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const { contentId } = req.params;
+    const userId = req.user.id;
+
+    const {
+      processedStorageRef,
+      processedBlobName,
+      outputFormat,
+    } = req.body;
+
+    if (!processedStorageRef || !processedBlobName || !outputFormat) {
+      return res.status(400).json({ message: "Missing processed output data" });
+    }
+
+    const { resource } =
+      await Content_outputsContainer.item(contentId, userId).read();
+
+    if (!resource) {
+      return res.status(404).json({ message: "Content output not found" });
+    }
+
+    resource.processedStorageRef = processedStorageRef;
+    resource.processedBlobName = processedBlobName;
+    resource.processedContainerName = "content-processed";
+    resource.outputFormat = outputFormat as OutputFormat;
+
+    resource.status = "READY";
+    resource.processedAt = new Date().toISOString();
+
+    await Content_outputsContainer
+      .item(contentId, userId)
+      .replace(resource);
+
+    res.status(200).json(resource);
+  } catch (error) {
+    console.error("[content_outputs] complete error:", error);
+    res.status(500).json({ message: "Failed to save processed output" });
+  }
+};
+
+/**
+ * STEP 4 — Mark processing failed
+ */
+export const markProcessingFailed = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const { contentId } = req.params;
+    const userId = req.user.id;
+    const { errorMessage } = req.body;
+
+    const { resource } =
+      await Content_outputsContainer.item(contentId, userId).read();
+
+    if (!resource) {
+      return res.status(404).json({ message: "Content output not found" });
+    }
+
+    resource.status = "FAILED";
+    resource.errorMessage = errorMessage || "Processing failed";
+
+    await Content_outputsContainer
+      .item(contentId, userId)
+      .replace(resource);
+
+    res.status(200).json(resource);
+  } catch (error) {
+    console.error("[content_outputs] failed error:", error);
+    res.status(500).json({ message: "Failed to mark processing failed" });
+  }
+};
+
+/**
+ * GET — Only READY outputs for dashboard
+ */
+export const getMyContentOutputs = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const userId = req.user.id;
 
     const query = {
-      query: "SELECT * FROM c WHERE c.userId = @userId ORDER BY c.createdAt DESC",
-      parameters: [{ name: "@userId", value: user.id }],
+      query: `
+        SELECT * FROM c
+        WHERE c.userId = @userId
+          AND c.type = "CONTENT_OUTPUT"
+          AND c.status = "READY"
+        ORDER BY c.createdAt DESC
+      `,
+      parameters: [{ name: "@userId", value: userId }],
     };
 
     const { resources } =
-      await Content_outputsContainer.items.query<content_outputs>(query).fetchAll();
+      await Content_outputsContainer.items.query(query).fetchAll();
 
     res.status(200).json(resources);
-
   } catch (error) {
-    console.error("[content_outputs] Error fetching content list:", error);
-    res.status(500).json({ message: "Internal server error" });
+    console.error("[content_outputs] fetch error:", error);
+    res.status(500).json({ message: "Failed to fetch content outputs" });
   }
 };
 
-export const getContentOutputById = async (req: Request, res: Response) => {
+/**
+ * GET — Single content output
+ */
+export const getContentOutputById = async (
+  req: Request,
+  res: Response
+) => {
   try {
-    const user = req.user;
     const { contentId } = req.params;
+    const userId = req.user.id;
 
-    if (!user) return res.status(401).json({ message: "Unauthorized" });
+    const { resource } =
+      await Content_outputsContainer.item(contentId, userId).read();
 
-    const query = {
-      query: "SELECT * FROM c WHERE c.userId = @userId AND c.contentId = @contentId",
-      parameters: [
-        { name: "@userId", value: user.id },
-        { name: "@contentId", value: contentId },
-      ],
-    };
-
-    const { resources } =
-      await Content_outputsContainer.items.query<content_outputs>(query).fetchAll();
-
-    if (resources.length === 0) {
-      return res.status(404).json({ message: "Content not found" });
+    if (!resource || resource.status !== "READY") {
+      return res.status(404).json({ message: "Content not available" });
     }
 
-    res.status(200).json(resources[0]);
-
+    res.status(200).json(resource);
   } catch (error) {
-    console.error("[content_outputs] Error fetching content:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-};
-export const deleteContentOutput = async (req: Request, res: Response) => {
-  try {
-    const user = req.user;
-    const { contentId } = req.params;
-
-    if (!user) return res.status(401).json({ message: "Unauthorized" });
-
-    // Find item first (needed to get Cosmos `id`)
-    const query = {
-      query: "SELECT * FROM c WHERE c.userId = @userId AND c.contentId = @contentId",
-      parameters: [
-        { name: "@userId", value: user.id },
-        { name: "@contentId", value: contentId },
-      ],
-    };
-
-    const { resources } =
-      await Content_outputsContainer.items.query<content_outputs>(query).fetchAll();
-
-    if (resources.length === 0) {
-      return res.status(404).json({ message: "Content not found" });
-    }
-
-    const item = resources[0];
-
-    // Delete from content_outputs
-    await Content_outputsContainer.item(item.id, user.id).delete();
-
-    // Remove from user's previousContentList
-    const { resource: userDoc } = await UserContainer
-      .item(user.id, user.id)
-      .read<User>();
-
-    if (userDoc) {
-      userDoc.previousContentList =
-        userDoc.previousContentList.filter(id => id !== contentId);
-
-      await UserContainer.item(user.id, user.id).replace(userDoc);
-    }
-
-    res.status(200).json({ message: "Content deleted successfully" });
-
-  } catch (error) {
-    console.error("[content_outputs] Error deleting content:", error);
-    res.status(500).json({ message: "Internal server error" });
+    console.error("[content_outputs] getById error:", error);
+    res.status(500).json({ message: "Failed to fetch content output" });
   }
 };

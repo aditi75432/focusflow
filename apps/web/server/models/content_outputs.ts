@@ -2,15 +2,45 @@
 
 export type InputType = "audio" | "video" | "text";
 
-export interface content_outputs {
-  id: string;                 // Cosmos DB required field (same as contentId)
-  contentId: string;          // explicit content identifier
-  userId: string;             // partition key (recommended)
+export type ProcessingStatus =
+  | "UPLOADED"      // raw file uploaded
+  | "PROCESSING"    // OpenAI / pipeline running
+  | "READY"         // processed output ready
+  | "FAILED";       // processing failed
 
+export type OutputFormat =
+  | "BIONIC_TEXT"
+  | "SOCRATIC_QA"
+  | "FLOWCHART"
+  | "SUMMARY"
+  | "TRANSCRIPT";
+
+export interface Content_outputs {
+  /** Cosmos DB required fields */
+  id: string;                 // same as contentId
+  contentId: string;
+  userId: string;             // partition key
+
+  /** Input metadata */
   inputType: InputType;       // audio | video | text
-  storageRef: string;         // Blob Storage URL
+  rawStorageRef: string;      // blob URL of original file (PDF / video / audio)
 
-  createdAt: string;          // ISO timestamp
+  /** Processed output (IMPORTANT) */
+  processedStorageRef?: string; // blob URL of processed JSON (Bionic / Socratic)
+  outputFormat?: OutputFormat;  // what kind of learning artifact this is
 
-  type: "CONTENT_OUTPUT";     // useful for polymorphic queries
+  /** Blob metadata for processed output */
+  processedBlobName?: string;
+  processedContainerName?: string; // e.g. content-processed
+
+  /** Processing lifecycle */
+  status: ProcessingStatus;
+  errorMessage?: string;
+
+  /** Timestamps */
+  createdAt: string;
+  processedAt?: string;
+
+  /** Discriminator */
+  type: "CONTENT_OUTPUT";
 }
