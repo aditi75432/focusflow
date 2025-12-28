@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "FocusFlow NeuroSync",
+  "version": "1.0.0",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": ["http://localhost:4000/*"],
+  "action": { "default_popup": "popup.html" },
+  "content_scripts": [{
+    "matches": ["<all_urls>"],
+    "js": ["content.js"],
+    "css": ["style.css"]
+  }]
+}

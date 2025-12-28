@@ -12,5 +12,9 @@
     "lint:web": "npm run lint -w apps/web",
     "build:ext": "npm run build -w apps/extension",
     "dev:ext": "npm run dev -w apps/extension"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.1.32",
+    "typescript": "^5.9.3"
   }
 }
