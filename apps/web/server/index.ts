@@ -21,7 +21,7 @@ if (typeof globalThis.crypto.randomUUID !== 'function') {
 
 
 dotenv.config();
-
+import progressRoutes from "./routes/progress.routes";
 
 
 const PORT = process.env.PORT;
@@ -40,7 +40,7 @@ app.use("/api/preferences", preferenceRoutes);
 app.get("/api/status", (req, res) => {
   res.json({ message: "Backend is reachable from Frontend", db: "Connected" });
 });
-
+app.use("/progress", progressRoutes);
 
 app.listen(PORT, async () => {
     console.log(`Server Starting : http://localhost:${PORT}`);
