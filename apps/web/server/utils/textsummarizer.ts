@@ -3,7 +3,8 @@ import { uploadToBlob } from "../lib/blob.config";
 import { Content_outputsContainer } from "../lib/db.config";
 
 // ✅ CORRECT pdfjs import for Node 20 + ESM
-import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
+// import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
+import pdfjsLib from "pdfjs-dist/legacy/build/pdf";
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
