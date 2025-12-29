@@ -15,7 +15,6 @@ interface PreferencesStore {
 
 export const usePreferencesStore = create<PreferencesStore>((set, get) => ({
     preferences: null,
-    // setPreferences: (preferences: UserPreferences) => set({ preferences }),
     getPreferences: async () => {
         try {
             const response = await axios.get(`${API_URL}/api/preferences/get`);
