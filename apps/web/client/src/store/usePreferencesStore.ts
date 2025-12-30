@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import axios from 'axios';
 import { UserPreferences } from './useAuthStore';
 
-const API_URL = "http://localhost:3001";
+const API_URL = import.meta.env.VITE_API_URL;
 axios.defaults.withCredentials = true;
 
 // Aligning frontend interface with the backend aiEvaluation model

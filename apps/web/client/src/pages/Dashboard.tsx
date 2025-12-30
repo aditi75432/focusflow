@@ -2,18 +2,22 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   Sparkles, Loader2, FileText, PlayCircle, 
-  Mic, LayoutDashboard, LogOut, ChevronRight 
+  Mic, LayoutDashboard, LogOut, ChevronRight,
+  User as UserIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProfileCard } from "@/components/dashboard/ProfileCard";
 import { StreakDisplay } from "@/components/dashboard/StreakDisplay";
+import { ProfileOverview } from "@/components/dashboard/ProfileOverview";
 import { ContentUpload } from "@/components/dashboard/ContentUpload";
 import { ContentCard } from "@/components/dashboard/ContentCard";
 import { useAuthStore } from "@/store/useAuthStore";
 import { usePreferencesStore } from "@/store/usePreferencesStore";
 import { useStudyStore } from "@/store/useStudyTemp";
+import { useProgressStore } from "@/store/useProgressStore";
 
 const Dashboard = () => {
+  const {progress, getOrUpdateProgress} = useProgressStore();
   const { isAuthenticated, user, logout } = useAuthStore();
   const { preferences, getPreferences } = usePreferencesStore();
   const { contents } = useStudyStore();
@@ -27,8 +31,9 @@ const Dashboard = () => {
       navigate("/auth");
     } else {
       getPreferences(); 
+      getOrUpdateProgress();
     }
-  }, [isAuthenticated, navigate, getPreferences]);
+  }, [isAuthenticated, navigate, getPreferences, getOrUpdateProgress]);
 
   const handleLogout = async () => {
     await logout();
@@ -55,6 +60,12 @@ const Dashboard = () => {
             label="Overview" 
             active={activeTab === 'overview'} 
             onClick={() => setActiveTab('overview')} 
+          />
+          <SidebarLink 
+            icon={<UserIcon className="w-4 h-4" />} 
+            label="My Profile" 
+            active={activeTab === 'profile'} 
+            onClick={() => setActiveTab('profile')} 
           />
           <div className="pt-4 pb-2 text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
             Input Labs
@@ -128,8 +139,11 @@ const Dashboard = () => {
               </div>
             )}
 
+            {/* Dashboard Content */}
+            {activeTab === 'profile' && <ProfileOverview />}
+
             {/* Conditional Lab Components */}
-            {activeTab !== 'overview' && (
+            {(activeTab === 'text' || activeTab === 'video' || activeTab === 'audio') && (
               <div className="animate-fade-in space-y-6">
                 <ContentUpload activeTab={activeTab} />
                 <OutputVibeSelector />

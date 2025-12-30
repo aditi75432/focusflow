@@ -18,6 +18,7 @@ export const getOrInitProgress = async (req: Request, res: Response) => {
       id: userId,
       userId,
       focusStreak: 1,
+      maxStreak: 1,
       completedSessions: 0,
       skills: {},
       lastActive: now,
@@ -31,18 +32,22 @@ export const getOrInitProgress = async (req: Request, res: Response) => {
   }
 
   // 🔥 STREAK LOGIC
-  let streak = resource.focusStreak;
+  let streak = resource.focusStreak || 0;
+  let maxStreak = resource.maxStreak || streak || 0;
 
   if (resource.lastStreakDate === todayDate) {
     // already counted today → do nothing
   } else if (resource.lastStreakDate === yesterday()) {
     streak += 1;
+    maxStreak = Math.max(streak, maxStreak);
   } else {
+    maxStreak = Math.max(streak, maxStreak);
     streak = 1; // streak broken
   }
 
   const updated: Progress = {
     ...resource,
+    maxStreak,
     focusStreak: streak,
     lastStreakDate: todayDate,
     lastActive: now,

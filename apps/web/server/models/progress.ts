@@ -3,6 +3,7 @@ export interface Progress {
   userId: string;          // partition key
 
   focusStreak: number;     // consecutive days
+  maxStreak: number;
   completedSessions: number;
 
   skills: {
