@@ -47,13 +47,20 @@ function createDashboard() {
                     <button id="meet-send" style="background:#10a37f; color:white; border:none; padding:8px 15px; border-radius:4px; cursor:pointer;">➤</button>
                 </div>
             </div>
-            <div id="v-d" class="view" style="display:none; flex-direction:column; height:100%;">
-                <button id="trigger-ocr" style="background:#10a37f; color:white; border:none; padding:10px; border-radius:8px; margin-bottom:10px; cursor:pointer;">🔍 Select from Video</button>
-                <button id="trigger-shredder" style="background:#0ea5e9; color:white; border:none; padding:10px; border-radius:8px; margin-bottom:10px; cursor:pointer;">✂️ Shred to Flowchart</button>
-                <div id="visual-output" style="flex:1; overflow-y:auto; background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0; font-size:14px;">
-                    Visual insights or flowcharts will appear here...
-                </div>
-            </div>
+<div id="v-d" class="view" style="display:none; flex-direction:column; height:100%;">
+    <div style="display:flex; gap:5px; margin-bottom:10px;">
+        <button id="trigger-ocr" style="flex:2; background:#10a37f; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer;">🔍 Select Area</button>
+        <button id="visual-shredder" style="flex:1; background:#0ea5e9; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer;">✂️ Shred</button>
+        <button id="visual-onenote" style="flex:1; background:#773b9a; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer;">💜 OneNote</button>
+    </div>
+    <div id="visual-output" style="max-height:120px; overflow-y:auto; background:#f0f9ff; padding:8px; border-radius:5px; font-size:13px; margin-bottom:10px;">Select area to explain...</div>
+    
+    <div id="visual-chat-history" style="flex:1; overflow-y:auto; border-top:1px solid #ddd; padding-top:10px;"></div>
+    <div style="display:flex; padding:10px; gap:5px; border-top:1px solid #eee;">
+        <input type="text" id="visual-chat-input" placeholder="Ask about selection..." style="flex:1; padding:8px; border-radius:4px; border:1px solid #ddd;">
+        <button id="visual-chat-send" style="background:#10a37f; color:white; border:none; padding:0 15px; border-radius:4px; cursor:pointer;">➤</button>
+    </div>
+</div>
         </div>
     `;
     document.body.appendChild(dashboard);
@@ -142,20 +149,85 @@ function setupDashboardActions() {
         }
     };
 
-    // Visual Tab: Video Shredder Trigger
-    document.getElementById('trigger-shredder').onclick = async () => {
-        const output = document.getElementById('visual-output');
-        output.innerText = "Generating flowchart...";
-        try {
-            const res = await fetch('http://localhost:3000/vision/shredder', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ transcript: transcriptText })
-            });
-            const data = await res.json();
-            output.innerText = data.mermaidCode;
-        } catch (e) { output.innerText = "Error generating flowchart."; }
-    };
+// Use securityLevel: 'loose' if you need to render HTML labels
+mermaid.initialize({ 
+    startOnLoad: false, 
+    theme: 'neutral',
+    securityLevel: 'loose' 
+});
+
+// 2. Updated Shredder logic using mermaid.run()
+document.getElementById('trigger-shredder').onclick = async () => {
+    const output = document.getElementById('visual-output');
+    output.innerHTML = "Generating flowchart...";
+    try {
+        const res = await fetch('http://localhost:3000/vision/shredder', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ transcript: transcriptText })
+        });
+        const data = await res.json();
+        
+        // Use textContent to prevent XSS or parsing issues
+        output.innerHTML = `<pre class="mermaid">${data.mermaidCode}</pre>`;
+        
+        // Use mermaid.run() instead of init()
+        await mermaid.run({
+            nodes: output.querySelectorAll('.mermaid')
+        });
+    } catch (e) { 
+        output.innerHTML = "Error: " + e.message; 
+    }
+};
+
+// Variable to store the context for the visual chat
+let lastOcrResult = "";
+let visualChatHistory = [];
+
+// 1. Mermaid v10 Fix (Use run instead of init)
+const handleShredder = async () => {
+    const output = document.getElementById('visual-output');
+    output.innerHTML = "Generating flowchart...";
+    try {
+        const res = await fetch('http://localhost:3000/media/shredder', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ transcript: transcriptText })
+        });
+        const data = await res.json();
+        output.innerHTML = `<pre class="mermaid">${data.mermaidCode}</pre>`;
+        // FIX: Re-run mermaid for the new element
+        await mermaid.run({ nodes: output.querySelectorAll('.mermaid') });
+    } catch (e) { output.innerHTML = "Error: " + e.message; }
+};
+document.getElementById('visual-shredder').onclick = handleShredder;
+document.getElementById('trigger-shredder').onclick = handleShredder;
+
+// 2. Visual Chat logic
+document.getElementById('visual-chat-send').onclick = async () => {
+    const input = document.getElementById('visual-chat-input');
+    const text = input.value.trim();
+    if (!text || !lastOcrResult) return;
+    
+    addVisualMsg(text, 'user');
+    input.value = '';
+    
+    const res = await fetch('http://localhost:3000/vision/ocr-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text, ocrContext: lastOcrResult, history: visualChatHistory })
+    });
+    const data = await res.json();
+    addVisualMsg(data.reply, 'bot');
+    visualChatHistory.push({ role: "user", content: text }, { role: "assistant", content: data.reply });
+};
+
+// 3. Shared OneNote Logic
+const triggerOneNote = () => {
+    const content = document.getElementById('nugget-content').innerText || document.getElementById('visual-output').innerText;
+    exportToOneNote(content); // Existing function
+};
+document.getElementById('visual-onenote').onclick = triggerOneNote;
 }
 
 // Listen for OCR results from vision.js
@@ -177,10 +249,18 @@ window.addEventListener("message", async (event) => {
     }
 });
 
+function addVisualMsg(text, sender) {
+    const hist = document.getElementById('visual-chat-history');
+    if (!hist) return;
+    const msg = document.createElement('div');
+    msg.className = `ff-msg ${sender}`;
+    msg.innerHTML = bionicActive ? applyBionic(text) : text;
+    hist.appendChild(msg);
+    hist.scrollTop = hist.scrollHeight;
+}
 
 function applyBionic(text) {
     if (!text) return "";
-    // Use a DOM parser to only apply bionic to text nodes, preserving HTML tags
     const parser = new DOMParser();
     const doc = parser.parseFromString(`<span>${text}</span>`, 'text/html');
     
@@ -220,7 +300,6 @@ function formatADHD(text) {
     return bionicActive ? applyBionic(html) : html;
 }
 
-// Update updateUI to use the new formatter
 function updateUI() {
     const feed = document.getElementById('live-transcript-area');
     const nugget = document.getElementById('nugget-content');
@@ -228,14 +307,6 @@ function updateUI() {
     if (nugget) nugget.innerHTML = formatADHD(currentNuggetContent); // Uses advanced formatting
 }
 
-// function applyBionic(text) {
-//     if (!text) return "";
-//     return text.split(/([\s\n]+)/).map(w => {
-//         if (w.trim().length < 2) return w;
-//         const m = Math.ceil(w.length / 2);
-//         return `<b>${w.slice(0, m)}</b>${w.slice(m)}`;
-//     }).join('').replace(/\n/g, '<br>');
-// }
 
 function addMeetMsg(text, sender) {
     const hist = document.getElementById('meet-chat-history');
@@ -260,4 +331,57 @@ function makeDraggable(el, handle) {
             el.style.bottom = "auto"; el.style.right = "auto";
         };
     };
+}
+
+
+async function exportToOneNote() {
+    const content = document.getElementById('nugget-content').innerText;
+    // Simple POST to Microsoft Graph OneNote endpoint
+    const res = await fetch('https://graph.microsoft.com/v1.0/me/onenote/pages', {
+        method: 'POST',
+        headers: { 
+            'Authorization': `Bearer ${userAccessToken}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            title: "FocusFlow: " + new Date().toLocaleDateString(),
+            content: `<html><body>${content}</body></html>`
+        })
+    });
+    if(res.ok) alert("Exported to OneNote!");
+}
+
+
+let lastInteraction = Date.now();
+const QUIZ_INTERVAL = 10 * 60 * 1000; // 10 minutes
+
+// Track user activity
+['mousedown', 'keydown', 'scroll'].forEach(evt => {
+    window.addEventListener(evt, () => { lastInteraction = Date.now(); });
+});
+
+// Check for inactivity periodically
+setInterval(async () => {
+    if (Date.now() - lastInteraction > QUIZ_INTERVAL && transcriptText.length > 500) {
+        triggerActiveRecallQuiz();
+    }
+}, 60000); // Check every minute
+
+async function triggerActiveRecallQuiz() {
+    // 1. Visual Nudge: Flash the dashboard border
+    dashboard.style.border = "5px solid #ff4444";
+    setTimeout(() => dashboard.style.border = "3px solid #10a37f", 3000);
+
+    // 2. Fetch Quiz from Groq
+    const res = await fetch('http://localhost:3000/media/generate-quiz', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ context: transcriptText.slice(-2000) })
+    });
+    const data = await res.json();
+
+    // 3. Show Quiz in Assistant Tab
+    switchTab('t-c');
+    addMeetMsg("Focus Check: " + data.question, 'bot');
+    lastInteraction = Date.now(); // Reset timer so it doesn't spam
 }

@@ -1,45 +1,71 @@
+// apps/extensions/backend/routes/visionRoutes.ts
 import express from 'express';
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import ImageAnalysisClient, { isUnexpected } from "@azure-rest/ai-vision-image-analysis";
+import { AzureKeyCredential } from "@azure/core-auth";
 import Groq from 'groq-sdk';
 
 const router = express.Router();
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
+// Azure AI Vision 4.0 Configuration
+const endpoint = process.env.AZURE_VISION_ENDPOINT || "";
+const key = process.env.AZURE_VISION_KEY || "";
+const createClient = (ImageAnalysisClient as any).default || ImageAnalysisClient;
+const client = createClient(endpoint, new AzureKeyCredential(key));
 const sanitize = (text: string) => text.replace(/[*#_~`>]/g, '').trim();
 
-// Endpoint for OCR and ADHD-friendly explanation
 router.post('/ocr-explain', async (req: any, res: any) => {
-    const { image, context } = req.body; // Base64 image from frontend
+    const { image } = req.body;
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const buffer = Buffer.from(image.split(',')[1], 'base64');
+        const result = await client.path('/imageanalysis:analyze').post({
+            body: buffer,
+            queryParameters: { features: ['caption', 'read'] },
+            contentType: 'application/octet-stream'
+        });
         
-        // In a full implementation, you would first call Azure AI Vision here.
-        // For Phase 2, we pipe the image data directly to Gemini's multimodal vision.
-        const result = await model.generateContent([
-            "Extract text from this image and explain it simply for a student with ADHD using bullet points. No markdown symbols.",
-            { inlineData: { data: image.split(',')[1], mimeType: "image/jpeg" } }
-        ]);
+        if (isUnexpected(result)) {
+            throw result.body.error;
+        }
 
-        res.json({ reply: sanitize(result.response.text()) });
+        const ocrText = result.body.readResult?.blocks.map((b: any) => 
+            b.lines.map((l: any) => l.text).join(' ')
+        ).join('\n') || "No text detected.";
+
+        const explanation = await groq.chat.completions.create({
+            model: "llama-3.3-70b-versatile",
+            messages: [{ 
+                role: "system", 
+                content: "Explain this OCR text simply for ADHD. Use [DEF] for terms and [TASK] for actions. No markdown." 
+            }, { 
+                role: "user", content: `OCR Text: ${ocrText}` 
+            }]
+        });
+        res.json({ reply: explanation.choices[0]?.message?.content || "" });
     } catch (error: any) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: "Azure Vision failed: " + error.message });
     }
 });
 
-// Endpoint for the Video Shredder (Mermaid flowchart)
-router.post('/shredder', async (req: any, res: any) => {
-    const { transcript } = req.body;
+// NEW: Chat about specific visual selection
+router.post('/ocr-chat', async (req: any, res: any) => {
+    const { message, ocrContext, history } = req.body;
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        const prompt = `Convert this lecture transcript into a Mermaid.js TD flowchart. 
-        Return ONLY the mermaid code block starting with 'graph TD'. 
-        Transcript: ${transcript.slice(-6000)}`;
-
-        const result = await model.generateContent(prompt);
-        res.json({ mermaidCode: result.response.text() });
-    } catch (error: any) {
-        res.status(500).json({ error: error.message });
+        const response = await groq.chat.completions.create({
+            model: "llama-3.3-70b-versatile",
+            messages: [
+                { 
+                    role: "system", 
+                    content: `You are an ADHD assistant. The user is asking about a specific part of a video they just selected. 
+                    Selection Context: ${ocrContext}` 
+                },
+                ...history,
+                { role: "user", content: message }
+            ]
+        });
+        res.json({ reply: sanitize(response.choices[0]?.message?.content || "") });
+    } catch (error) {
+        res.status(500).json({ error: "Visual chat failed" });
     }
 });
 
