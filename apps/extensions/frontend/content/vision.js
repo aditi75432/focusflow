@@ -36,24 +36,30 @@ function startVisualSelection() {
     };
 }
 
+// apps/extensions/frontend/content/vision.js
+
 async function captureAndAnalyze(video, rect) {
     const captureCanvas = document.createElement('canvas');
-    captureCanvas.width = rect.w;
-    captureCanvas.height = rect.h;
+    
+    // FIX: Math.abs and Math.max prevent "undefined" or 0 dimensions
+    captureCanvas.width = Math.max(1, Math.abs(rect.w));
+    captureCanvas.height = Math.max(1, Math.abs(rect.h));
+    
     const ctx = captureCanvas.getContext('2d');
-
-    // Account for video element scaling
     const videoRect = video.getBoundingClientRect();
     const scaleX = video.videoWidth / videoRect.width;
     const scaleY = video.videoHeight / videoRect.height;
 
+    // FIX: Correctly identifies the top-left corner regardless of drag direction
+    const sourceX = (Math.min(rect.x, rect.x + rect.w) - videoRect.left) * scaleX;
+    const sourceY = (Math.min(rect.y, rect.y + rect.h) - videoRect.top) * scaleY;
+
     ctx.drawImage(video, 
-        (rect.x - videoRect.left) * scaleX, (rect.y - videoRect.top) * scaleY, rect.w * scaleX, rect.h * scaleY, 
-        0, 0, rect.w, rect.h
+        sourceX, sourceY, 
+        Math.abs(rect.w) * scaleX, Math.abs(rect.h) * scaleY, 
+        0, 0, captureCanvas.width, captureCanvas.height
     );
 
     const base64Image = captureCanvas.toDataURL('image/jpeg');
-    
-    // Send to Tab D (Visual) in meet.js
     window.postMessage({ type: 'OCR_CAPTURE_READY', image: base64Image }, "*");
 }

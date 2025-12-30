@@ -3,6 +3,7 @@ import multer from 'multer';
 import fs from 'fs';
 import Groq from 'groq-sdk';
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import axios from 'axios';
 
 const router = express.Router();
 const upload = multer({ dest: 'uploads/' });
@@ -173,6 +174,50 @@ router.post('/meet-chat', async (req: any, res: any) => {
         console.error("FocusFlow: Chat Error:", error.message);
         res.status(500).json({ error: error.message });
     }
+});
+
+router.post('/generate-quiz', async (req: any, res: any) => {
+    const { context } = req.body;
+    const groq = getGroqClient();
+    const response = await groq.chat.completions.create({
+        model: "llama-3.3-70b-versatile",
+        messages: [{ 
+            role: "system", 
+            content: "Generate ONE short, challenging active recall question based on this lecture segment. Keep it under 20 words." 
+        }, { 
+            role: "user", content: context }]
+    });
+    res.json({ question: response.choices[0]?.message?.content || "What was the main point just discussed?" });
+});
+
+// Azure Video Indexer Token Logic
+async function getVIAuthToken() {
+    const url = `https://api.videoindexer.ai/auth/${process.env.AZURE_REGION}/Accounts/${process.env.AZURE_VIDEO_INDEXER_ID}/AccessToken?allowEdit=true`;
+    const res = await axios.get(url, { headers: { 'Ocp-Apim-Subscription-Key': process.env.AZURE_VIDEO_INDEXER_KEY } });
+    return res.data;
+}
+
+router.get('/topic-check', async (req: any, res: any) => {
+    try {
+        const token = await getVIAuthToken();
+        // Fetch real-time insights from Video Indexer
+        const viRes = await axios.get(
+            `https://api.videoindexer.ai/${process.env.AZURE_REGION}/Accounts/${process.env.AZURE_VIDEO_INDEXER_ID}/Videos/${req.query.videoId}/Index?accessToken=${token}`
+        );
+        const topics = viRes.data.summarizedInsights?.topics || [];
+        res.json({ currentTopic: topics[topics.length - 1]?.name || "General" });
+    } catch (err) { res.status(500).send("Indexer error"); }
+});
+
+// Mermaid Shredder (using Groq for logic generation)
+router.post('/shredder', async (req: any, res: any) => {
+    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+    const response = await groq.chat.completions.create({
+        model: "llama-3.3-70b-versatile",
+        messages: [{ role: "system", content: "Convert transcript to Mermaid graph TD code. ONLY return code." },
+                   { role: "user", content: req.body.transcript }]
+    });
+    res.json({ mermaidCode: response.choices[0]?.message?.content });
 });
 
 export default router;
