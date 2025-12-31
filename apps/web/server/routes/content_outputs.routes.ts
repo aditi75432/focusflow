@@ -3,6 +3,7 @@ import { protectRoute } from "../middleware/auth.middleware";
 import {
   createContentOutput,
   getContentOutputById,
+  getMyContentOutputs,
 } from "../controllers/content_outputs.controller";
 import { triggerprocessingPDF } from "../controllers/PdfSummarizer.controller";
 import { triggerprocessingLink } from "../controllers/LinkSummarizer.controller";
@@ -11,6 +12,8 @@ import { triggerprocessingText } from "../controllers/textsummarizer.controller"
 const router = Router();
 
 router.post("/", protectRoute, createContentOutput);
+router.get("/myContentOutputs", protectRoute, getMyContentOutputs);
+
 router.get("/:contentId", protectRoute, getContentOutputById);
 
 // 🔥 PROCESS trigger
