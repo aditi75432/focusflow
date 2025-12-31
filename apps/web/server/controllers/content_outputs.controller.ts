@@ -91,12 +91,9 @@ export const getMyContentOutputs = async (req: Request, res: Response) => {
       ]
     };
 
-    console.log("[getMyContentOutputs] Query Spec: ", querySpec);
-
     const { resources } = await Content_outputsContainer.items.query(querySpec).fetchAll();
 
     console.log("[getMyContentOutputs] Success");
-    console.log("Resources: ",resources);
 
     res.status(200).json({
       count: resources.length,

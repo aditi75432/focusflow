@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   Sparkles, Loader2, FileText, PlayCircle, 
-  Mic, LayoutDashboard, LogOut, ChevronRight, Settings,
+  Mic, LayoutDashboard, LogOut, ChevronRight, Settings, History,
   User as UserIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ import { useStudyStore } from "@/store/useStudyTemp";
 import { useProgressStore } from "@/store/useProgressStore";
 import { FocusTimer } from "@/components/dashboard/FocusTimer";
 import { SettingsView } from "@/components/dashboard/SettingsView";
-import { LabsWorkspace } from "@/components/dashboard/LabsWorkspace";
+import { MyLearningHistory } from "@/components/dashboard/MyLearningHistory";
 
 const Dashboard = () => {
   const {progress, getOrUpdateProgress} = useProgressStore();
@@ -98,6 +98,12 @@ const Dashboard = () => {
             active={activeTab === 'audio'} 
             onClick={() => setActiveTab('audio')} 
           />
+          <SidebarLink 
+            icon={<History className="w-4 h-4" />} 
+            label="My Learning History" 
+            active={activeTab === 'myLearningHistory'} 
+            onClick={() => setActiveTab('myLearningHistory')} 
+          />
         </nav>
 
         <Button 
@@ -115,6 +121,8 @@ const Dashboard = () => {
         {/* 1. putting a check here If tab is 'settings', show ONLY the Settings View */}
         {activeTab === 'settings' ? (
            <SettingsView />
+        ) : activeTab === 'myLearningHistory' ? (
+          <MyLearningHistory />
         ) : (
            /* 2. ELSE: Render the Standard Dashboard (Overview, Profile, Labs, etc all the other crap: to be fixed) */
            <>
@@ -168,20 +176,6 @@ const Dashboard = () => {
             )}
 
             {/* Unified Material List */}
-            <div className="space-y-4">
-              <h3 className="font-serif text-xl font-semibold">Your Learning Materials</h3>
-              <div className="grid grid-cols-1 gap-3">
-                {contents
-                  .filter(c => activeTab === 'overview' || c.type === activeTab)
-                  .map((content) => <ContentCard key={content.id} content={content} />)
-                }
-                {contents.length === 0 && (
-                  <div className="p-12 text-center text-muted-foreground border-dashed border-2 rounded-xl">
-                    No {activeTab} materials synced.
-                  </div>
-                )}
-              </div>
-            </div>
             <div className="pt-6">
                 <h3 className="font-serif text-xl font-semibold mb-4">Focus Session</h3>
                 <FocusTimer />

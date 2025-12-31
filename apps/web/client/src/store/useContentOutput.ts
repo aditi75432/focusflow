@@ -6,15 +6,18 @@ axios.defaults.withCredentials = true;
 
 export interface ContentOutput {
     contentId: string;
+    contentOutputs: any[];
     createContentOutput: (inputType: string, storageRef: string) => Promise<string | undefined>;
     getContentOutputById: (contentId: string) => Promise<any>;
     triggerProcessingPDF: (contentId: string) => Promise<any>;
     triggerProcessingLink: (contentId: string) => Promise<any>;
     triggerProcessingText: (contentId: string) => Promise<any>;
+    getMyContentOutputs: () => Promise<any[]>;
 }
 
 export const useContentOutputStore = create<ContentOutput>((set) => ({
     contentId: "",
+    contentOutputs: [],
     createContentOutput: async(inputType: string, storageRef: string) => {
         try{
             const response = await axios.post(`${API_URL}/api/content_outputs`, {
@@ -62,4 +65,15 @@ export const useContentOutputStore = create<ContentOutput>((set) => ({
             console.error("Error triggering Text processing:", error);
         }
     },
+    getMyContentOutputs: async() => {
+        try{
+            const response = await axios.get(`${API_URL}/api/content_outputs/myContentOutputs`);
+            set({
+                contentOutputs: response.data.data,
+            });
+            return response.data.data;
+        } catch(error) {
+            console.error("Error getting my content outputs:", error);
+        }
+    }
 }))
