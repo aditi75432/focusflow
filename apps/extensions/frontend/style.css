@@ -205,6 +205,42 @@ b {
 .topic-tag.orange { background: #fff7ed; border-color: #f97316; color: #9a3412; }
 .topic-tag.purple { background: #faf5ff; border-color: #a855f7; color: #6b21a8; }
 
+/* apps/extensions/frontend/style.css */
+
+.topic-card {
+    padding: 12px;
+    margin-bottom: 12px;
+    border-radius: 8px;
+    border-left: 6px solid; /* Strong visual indicator */
+    line-height: 1.6;
+    font-size: 14px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.topic-card.blue {
+    background-color: #eff6ff; /* Soft Blue */
+    border-color: #3b82f6;
+    color: #1e40af;
+}
+
+.topic-card.orange {
+    background-color: #fff7ed; /* Soft Orange */
+    border-color: #f97316;
+    color: #9a3412;
+}
+
+.topic-card.green {
+    background-color: #f0fdf4; /* Soft Green */
+    border-color: #22c55e;
+    color: #166534;
+}
+
+.topic-card.purple {
+    background-color: #faf5ff; /* Soft Purple */
+    border-color: #a855f7;
+    color: #6b21a8;
+}
+
 .highlight-task { background-color: #dcfce7 !important; color: #166534; padding: 2px 4px; border-radius: 4px; font-weight: 700; }
 .highlight-def { background-color: #fef9c3 !important; color: #854d0e; padding: 2px 4px; border-radius: 4px; font-weight: 700; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }

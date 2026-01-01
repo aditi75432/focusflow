@@ -332,23 +332,6 @@ function setupVisualActions() {
     }
 
     // Visual Shredder: Mermaid Logic
-    const shredBtn = document.getElementById('trigger-video-shredder');
-    if (shredBtn) {
-        shredBtn.onclick = async () => {
-            const output = document.getElementById('topic-output');
-            output.innerHTML = "Performing topic analysis...";
-            const res = await fetch(`http://localhost:3000/vision/video-topics?transcript=${encodeURIComponent(transcriptText)}`);
-            const data = await res.json();
-            
-            // Apply color coding for ADHD focus
-            output.innerHTML = data.topics
-                .replace(/\[TOPIC: blue\]/g, '<div class="topic-tag blue">')
-                .replace(/\[TOPIC: green\]/g, '<div class="topic-tag green">')
-                .replace(/\[TOPIC: orange\]/g, '<div class="topic-tag orange">')
-                .replace(/\[TOPIC: purple\]/g, '<div class="topic-tag purple">')
-                .replace(/\n/g, '</div>');
-        };
-    }
 
     // Visual Chat: Groq Analysis of Captured Region
     const vChatSend = document.getElementById('visual-chat-send');
@@ -373,24 +356,37 @@ function setupVisualActions() {
         };
     }
 
-    // Visual Microsoft OneNote Export
-    document.getElementById('visual-onenote').onclick = () => {
-        const content = document.getElementById('visual-output').innerText;
-        exportToOneNote(content);
-    };
+    // 5. Visual Microsoft OneNote Export (Exports Visual Results)
+    const vOneNote = document.getElementById('visual-onenote');
+    if (vOneNote) {
+        vOneNote.onclick = () => {
+            const content = document.getElementById('visual-output').innerText;
+            exportToOneNote(content);
+        };
+    }
 
-    document.getElementById('visual-shredder').onclick = async () => {
-        const output = document.getElementById('visual-output');
-        output.innerHTML = "Generating Mermaid flowchart...";
-        const res = await fetch('http://localhost:3000/media/shredder', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ transcript: transcriptText })
-        });
-        const data = await res.json();
-        output.innerHTML = `<pre class="mermaid">${data.mermaidCode}</pre>`;
-        if (window.mermaid) await mermaid.run({ nodes: output.querySelectorAll('.mermaid') });
-    };
+    // 4. Tab D: Mermaid Flowchart Logic (Audio-based logic flow)
+    const vShredBtn = document.getElementById('visual-shredder');
+    if (vShredBtn) {
+        vShredBtn.onclick = async () => {
+            const output = document.getElementById('visual-output');
+            output.innerHTML = "Generating Mermaid flowchart...";
+            try {
+                const res = await fetch('http://localhost:3000/media/shredder', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ transcript: transcriptText })
+                });
+                const data = await res.json();
+                
+                // Fix for Mermaid v10+ async rendering
+                output.innerHTML = `<pre class="mermaid">${data.mermaidCode}</pre>`;
+                await mermaid.run({ nodes: output.querySelectorAll('.mermaid') });
+            } catch (e) { 
+                output.innerHTML = "Error generating flowchart: " + e.message; 
+            }
+        };
+    }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -438,27 +434,29 @@ function addVisualMsg(text, sender) {
 /* TOPIC ANALYSIS ACTIONS (TAB E)                                             */
 /* -------------------------------------------------------------------------- */
 function setupTopicActions() {
-    const shredBtn = document.getElementById('trigger-video-shredder');
-    if (shredBtn) {
-        shredBtn.onclick = async () => {
-            const output = document.getElementById('topic-output');
-            output.innerHTML = "Performing deep topic analysis...";
+    
+const shredBtn = document.getElementById('trigger-video-shredder');
+if (shredBtn) {
+    shredBtn.onclick = async () => {
+        const output = document.getElementById('topic-output');
+        output.innerHTML = "Performing deep topic analysis...";
+        
+        try {
+            const res = await fetch(`http://localhost:3000/vision/video-topics?transcript=${encodeURIComponent(transcriptText)}`);
+            const data = await res.json();
             
-            try {
-                // Call the Video Indexer logic on the backend
-                const res = await fetch(`http://localhost:3000/vision/video-topics?transcript=${encodeURIComponent(transcriptText)}`);
-                const data = await res.json();
-                
-                // Color code the segments based on Azure AI insights
-                output.innerHTML = data.topics
-                    .replace(/\[TOPIC: blue\]/g, '<div class="topic-tag blue">')
-                    .replace(/\[TOPIC: green\]/g, '<div class="topic-tag green">')
-                    .replace(/\[TOPIC: orange\]/g, '<div class="topic-tag orange">')
-                    .replace(/\[TOPIC: purple\]/g, '<div class="topic-tag purple">')
-                    .replace(/\n/g, '</div>');
-            } catch (e) {
-                output.innerHTML = "Topic analysis failed. Check Azure Indexer status.";
-            }
-        };
-    }
+            // Convert text tags into color-coded blocks
+            let formattedTopics = data.topics
+                .replace(/\[TOPIC: Blue\]/gi, '<div class="topic-card blue"><b>Topic: Blue</b><br>')
+                .replace(/\[TOPIC: Orange\]/gi, '<div class="topic-card orange"><b>Topic: Orange</b><br>')
+                .replace(/\[TOPIC: Green\]/gi, '<div class="topic-card green"><b>Topic: Green</b><br>')
+                .replace(/\[TOPIC: Purple\]/gi, '<div class="topic-card purple"><b>Topic: Purple</b><br>')
+                .replace(/\n/g, '</div>'); // Close the divs at each newline
+
+            output.innerHTML = formattedTopics;
+        } catch (e) {
+            output.innerHTML = "Analysis failed. Ensure backend is running.";
+        }
+    };
+}
 }
