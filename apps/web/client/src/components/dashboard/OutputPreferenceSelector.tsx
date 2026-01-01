@@ -1,6 +1,6 @@
 const outputTypes = [
   { id: 'summary', label: 'Bite-Sized Summary', icon: '📝' },
-  { id: 'diagram', label: 'Visual Diagram', icon: '📊' },
+  { id: 'visual', label: 'Visual Diagram', icon: '📊' },
   { id: 'flowchart', label: 'Step-by-Step Flow', icon: '⚡' },
   { id: 'flashcards', label: 'Active Recall Cards', icon: '🎴' }
 ];

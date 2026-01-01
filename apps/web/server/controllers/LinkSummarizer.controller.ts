@@ -1,6 +1,11 @@
 import { Request, Response } from "express";
 import { Content_outputsContainer } from "../lib/db.config";
-import { processLinkInBackground } from "../utils/linkSummarizer";
+//import { processLinkInBackground } from "../utils/linkSummarizer";
+
+import { getOutputStyleOrDefault } from "../utils/valid_get_outputstyles";
+import { processTextWorker } from "../utils/process.text.worker";
+import { extractTextFromURL } from "../utils/linkSummarizer";
+import { getUserPreferences } from "../utils/getUserPreferences";
 
 export const triggerprocessingLink = async (
   req: Request,
@@ -11,6 +16,8 @@ export const triggerprocessingLink = async (
   try {
     const { contentId } = req.params;
     const userId = req.user.id;
+    const outputStyle = getOutputStyleOrDefault(req.body?.outputStyle);
+
 
     // 1️⃣ Fetch content_outputs
     const { resource } =
@@ -44,15 +51,30 @@ export const triggerprocessingLink = async (
       .item(contentId, userId)
       .patch([
         { op: "set", path: "/status", value: "PROCESSING" },
+        { op: "set", path: "/outputStyle", value: outputStyle },
+
       ]);
     console.log(`[Link Controller] Marked status as PROCESSING for contentId: ${contentId}`);
+    const extractedText = await extractTextFromURL(
+      resource.rawStorageRef
+    );
 
-    // 4️⃣ Fire background job (DO NOT await)
-    processLinkInBackground({
+    const preferences = await getUserPreferences(userId);
+
+    processTextWorker({
       contentId,
       userId,
+      outputStyle,
+      text: extractedText,
+      preferences,
     });
-    console.log(`[Link Controller] Dispatched background job for contentId: ${contentId}`);
+
+    // 4️⃣ Fire background job (DO NOT await)
+    // processLinkInBackground({
+    //   contentId,
+    //   userId,
+    // });
+    // console.log(`[Link Controller] Dispatched background job for contentId: ${contentId}`);
 
     // 5️⃣ Respond immediately
     return res.status(202).json({
