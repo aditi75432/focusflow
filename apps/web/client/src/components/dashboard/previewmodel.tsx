@@ -1,6 +1,8 @@
 import { X, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+type OutputStyle = "summary" | "visual" | "flowchart" | "flashcards";
+
 interface OutputPreviewModalProps {
   content: string;
   onClose: () => void;

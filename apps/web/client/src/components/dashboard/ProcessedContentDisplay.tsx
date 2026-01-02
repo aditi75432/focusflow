@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useContentOutputStore } from "@/store/useContentOutput";
 import { useUploadStore } from "@/store/useUploadStore";
 import { useStudyStore } from "@/store/useStudyTemp";
-
+import { paragraphsToPlainText} from "@/store/previewAdapter";
 import { OutputPreviewModal } from "./previewmodel";
 
 // Renderers
@@ -74,6 +74,10 @@ export const ProcessedContentDisplay = () => {
 
   /* ---------------- GUARDS ---------------- */
   if (!currentContentId) return null;
+  
+
+
+ 
 
   /* ---------------- UI ---------------- */
   return (
@@ -133,15 +137,7 @@ export const ProcessedContentDisplay = () => {
       {/* PREVIEW MODAL */}
       {showPreview && processedData && (
         <OutputPreviewModal
-          content={
-            outputStyle === "summary"
-              ? processedData.paragraphs
-                  .map((p: any) =>
-                    p.sentences.map((s: any) => s.text).join(" ")
-                  )
-                  .join("<br/><br/>")
-              : JSON.stringify(processedData, null, 2)
-          }
+          content={paragraphsToPlainText(processedData)}
           onClose={() => setShowPreview(false)}
         />
       )}
