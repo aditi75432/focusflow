@@ -28,7 +28,6 @@ type ViewMode = "grid" | "detail";
 export const MyLearningHistory = () => {
   const { contentOutputs = [], getMyContentOutputs } = useContentOutputStore();
   const { startSession, endSession } = useStudyStore();
-  const { contentOutputs, getMyContentOutputs } = useContentOutputStore();
   const { getBlobContent } = useUploadStore();
 
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
@@ -103,7 +102,9 @@ export const MyLearningHistory = () => {
     setIsDownloadingId(null);
   };
 
-  const handleBack = () => {
+  const handleBack = async () => {
+    console.log("[Learning History] Ending session and returning to grid");
+    await endSession(); // End session in backend
     setViewMode("grid");
     setPreviewText("");
     setActiveId(null);
@@ -129,12 +130,7 @@ export const MyLearningHistory = () => {
   if (viewMode === "detail") {
     const activeItem = contentOutputs.find(o => o.contentId === activeId);
     const filename = activeItem ? urlToFileName(activeItem.rawStorageRef || "") : "Summary";
-  // ---------------- CLOSE PREVIEW ----------------
-  const closePreview = async () => {
-    console.log("[Learning History] Closing history preview");
-    await endSession(); // End session in backend
-    setIsPreviewOpen(false);
-  };
+
 
     return (
       <div className="flex flex-col h-[calc(100vh-180px)] glass-card overflow-hidden animate-fade-in">
