@@ -11,7 +11,7 @@ const credential = new ClientSecretCredential(
 const SCOPE = "https://ai.azure.com/.default";
 
 const FOUNDRY_ENDPOINT =
-  "https://focusflowtrial-resource.services.ai.azure.com/api/projects/focusflowtrial/applications/workflow1/protocols/activityprotocol?api-version=2025-11-15-preview";
+  "";
 
 
 
