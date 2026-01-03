@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   Sparkles, Loader2, FileText, PlayCircle, 
-  Mic, LayoutDashboard, LogOut, ChevronRight, Settings, History,
+  Mic, LayoutDashboard, LogOut, ChevronRight, Settings, Info, History,
   User as UserIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ import { AIBodyDouble } from "@/components/dashboard/AIBodyDouble";
 import TextInputTab from "../pages/TextInputTab";
 import { ContentUploadVideo } from "@/components/dashboard/ContentUploadVideo";
 import VideoInputTab from "./VideoInputTab";
+import { AboutUs } from "@/components/dashboard/AboutUs";
 
 
 /* ------------------------------------------------------------------ */
@@ -48,7 +49,7 @@ const Dashboard = () => {
   const { contents } = useStudyStore();
   const navigate = useNavigate();
   
-  // Active Lab state: 'overview' | 'text' | 'video' | 'audio'
+  // Active Lab state: 'overview' | 'text' | 'video' | 'aboutUs'
   const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
@@ -114,16 +115,16 @@ const Dashboard = () => {
             onClick={() => setActiveTab('video')} 
           />
           <SidebarLink 
-            icon={<Mic className="w-4 h-4" />} 
-            label="Audio Stream" 
-            active={activeTab === 'audio'} 
-            onClick={() => setActiveTab('audio')} 
-          />
-          <SidebarLink 
             icon={<History className="w-4 h-4" />} 
             label="My Learning History" 
             active={activeTab === 'myLearningHistory'} 
             onClick={() => setActiveTab('myLearningHistory')} 
+          />
+          <SidebarLink 
+            icon={<Info className="w-4 h-4" />} 
+            label="About Us" 
+            active={activeTab === 'aboutUs'} 
+            onClick={() => setActiveTab('aboutUs')} 
           />
         </nav>
 
@@ -142,8 +143,16 @@ const Dashboard = () => {
         {/* 1. putting a check here If tab is 'settings', show ONLY the Settings View */}
         {activeTab === 'settings' ? (
            <SettingsView />
-        ) : activeTab === 'myLearningHistory' ? (
-          <MyLearningHistory />
+        ) : 
+        activeTab === 'aboutUs' ? (
+          <div className="animate-fade-in space-y-6">
+            <AboutUs />
+          </div>
+        ) : 
+        activeTab === 'myLearningHistory' ? (
+          <div className="animate-fade-in space-y-6">
+            <MyLearningHistory />
+          </div>
         ) : (
            /* 2. ELSE: Render the Standard Dashboard (Overview, Profile, Labs, etc all the other crap: to be fixed) */
            <>
@@ -188,7 +197,7 @@ const Dashboard = () => {
             {activeTab === 'profile' && <ProfileOverview />}
 
             {/* Conditional Lab Components */}
-            {(activeTab === 'text'  || activeTab === 'audio') && (
+            {(activeTab === 'text') && (
               <div className="animate-fade-in space-y-6">
                 <ContentUpload activeTab={activeTab} />
                 
@@ -196,7 +205,6 @@ const Dashboard = () => {
                 <ProcessedContentDisplay />
               </div>
             )}
-
 
             {(activeTab === 'video') && (
               <div className="animate-fade-in space-y-6">
@@ -208,10 +216,12 @@ const Dashboard = () => {
             )}
 
             {/* Unified Material List */}
-            <div className="pt-6">
-                <h3 className="font-serif text-xl font-semibold mb-4">Focus Session</h3>
-                <FocusTimer />
-            </div>
+            {activeTab !== 'text' && activeTab !== 'video' && (
+              <div className="pt-6">
+                  <h3 className="font-serif text-xl font-semibold mb-4">Focus Session</h3>
+                  <FocusTimer />
+              </div>
+            )}
           </div>
 
           {/* Sidebar Cards */}
