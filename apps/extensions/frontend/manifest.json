@@ -19,7 +19,7 @@
       "css": ["style.css"]
     },
     {
-      "matches": ["*://meet.google.com/*", "*://www.youtube.com/*", "*://www.spotify.com/*"],
+      "matches": ["*://meet.google.com/*", "*://www.youtube.com/*", "*://*.spotify.com/*"],
       "js": ["libs/mermaid.min.js","content/meet.js", "content/vision.js"],
       "css": ["style.css"]
     }
