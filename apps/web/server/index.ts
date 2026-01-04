@@ -28,6 +28,7 @@ import { checkBlobConnection } from "./lib/blob.config.js";
 
 const PORT = process.env.PORT;
 const app = express();
+app.set("trust proxy", 1);
 app.use(cookieParser());
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000', 

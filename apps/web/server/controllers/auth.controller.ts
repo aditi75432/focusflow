@@ -109,7 +109,11 @@ export const login = async (req: Request, res: Response) => {
 export const logout = async (req: Request, res: Response) => {
     try {
         // Clear the JWT cookie to end the session
-        res.clearCookie("jwt");
+        res.clearCookie("jwt", {
+            httpOnly: true,
+            sameSite: "none",
+            secure: true,
+        });
         res.status(200).json({ message: "Logout successful" });
     } catch (error) {
         console.error(`[Auth] Error logging out user: ${error}`);
