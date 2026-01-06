@@ -1,4 +1,4 @@
-# FocusFlow: Learning that follows you, not the other way around.
+# FocusFlow: Turning distraction into direction.
 
 **FocusFlow** is a bio-adaptive software ecosystem designed to eliminate cognitive exclusion by dynamically remapping the digital world to fit the human brain. The platform serves as an **“external frontal lobe,”** utilizing Azure AI and multimodal processing to transform overwhelming data into structured, high-signal intelligence in real time.
 
